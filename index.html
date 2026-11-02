@@ -1,263 +1,363 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rejestr Paragonów</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        h1, h2 {
-            color: #2c3e50;
-        }
-        .card {
-            background: #fff;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        label {
-            display: block;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        input, button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #27ae60;
-            color: white;
-            font-weight: bold;
-            border: none;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-        button:hover {
-            background-color: #219653;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        .config-section {
-            background: #eef2f3;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rejestr Paragonów</title>
+  <link rel="manifest" href="data:application/json,{\"name\":\"Paragony\",\"short_name\":\"Paragony\",\"start_url\":\".\",\"display\":\"standalone\",\"background_color\":\"#0f172a\",\"theme_color\":\"#0f172a\"}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .input-field { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; }
+    .input-field:focus { border-color: #3b82f6; outline: none; }
+  </style>
 </head>
-<body>
+<body class="min-h-screen pb-12">
 
-    <h1>Rejestr Paragonów</h1>
-
-    <!-- Konfiguracja GitHub -->
-    <div class="card config-section">
-        <h2>Konfiguracja GitHub</h2>
-        <label for="gh-token">Personal Access Token:</label>
-        <input type="password" id="gh-token" placeholder="Wklej swój token (z uprawnieniami contents: read and write)">
-        
-        <label for="gh-repo">Repozytorium (np. nazwaUzytkownika/nazwaRepo):</label>
-        <input type="text" id="gh-repo" placeholder="np. zamulares/JZParagony">
-        
-        <label for="gh-path">Ścieżka pliku (np. paragony.json):</label>
-        <input type="text" id="gh-path" value="paragony.json" placeholder="paragony.json">
-        
-        <button onclick="saveConfig()">Zapisz i połącz</button>
+  <!-- Nagłówek -->
+  <header class="glass-card sticky top-0 z-50 border-b border-slate-700/50 px-4 py-3 mb-6">
+    <div class="max-w-md mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xl border border-blue-500/30">
+          <i class="fa-solid font-bold fa-receipt"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">Rejestr Paragonów</h1>
+          <p id="syncStatus" class="text-xs text-slate-400 flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span> Niepołączono z GitHub
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="fetchFromGitHub()" title="Odśwież dane" class="p-2.5 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800 transition">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+        <button onclick="toggleSettingsModal()" title="Ustawienia GitHub" class="p-2.5 text-slate-300 hover:text-white rounded-xl hover:bg-slate-800 transition">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
     </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-4 space-y-6">
 
     <!-- Formularz dodawania -->
-    <div class="card">
-        <h2>Dodaj wpis</h2>
-        <label for="client-name">Imię i nazwisko klienta:</label>
-        <input type="text" id="client-name" placeholder="np. Jan Kowalski">
+    <section class="glass-card rounded-2xl p-5 shadow-xl">
+      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-plus text-blue-400"></i> Nowy Paragon
+      </h2>
+      <form id="receiptForm" onsubmit="handleAddReceipt(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Imię i nazwisko klienta</label>
+          <input type="text" id="clientName" required placeholder="np. Jan Kowalski" class="w-full input-field rounded-xl px-3.5 py-3 text-sm">
+        </div>
 
-        <label for="amount">Kwota (zł):</label>
-        <input type="number" step="0.01" id="amount" placeholder="np. 150.00">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Kwota (PLN)</label>
+          <input type="number" id="amount" step="0.01" min="0" required placeholder="0.00" class="w-full input-field rounded-xl px-3.5 py-3 text-sm text-lg font-semibold text-emerald-400">
+        </div>
 
-        <button onclick="addReceipt()">Zapisz paragon</button>
+        <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-base">
+          <i class="fa-solid fa-check"></i> Dodaj paragon
+        </button>
+      </form>
+    </section>
+
+    <!-- Statystyki miesięczne -->
+    <section class="grid grid-cols-1 gap-3">
+      <div class="glass-card rounded-2xl p-4 flex justify-between items-center">
+        <div>
+          <span class="text-xs font-medium text-slate-400 block">Suma w miesiącu</span>
+          <span id="statTotal" class="text-2xl font-bold text-white">0.00 PLN</span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl border border-emerald-500/20">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lista paragonów -->
+    <section class="space-y-3">
+      <div class="flex justify-between items-center px-1">
+        <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Lista wpisów</h2>
+        <input type="month" id="monthFilter" onchange="renderReceipts()" class="input-field rounded-lg px-2.5 py-1 text-xs text-slate-300">
+      </div>
+
+      <div id="receiptList" class="space-y-2.5">
+        <!-- Dynamiczne wpisy -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal Ustawień GitHub -->
+  <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-card w-full max-w-md rounded-2xl p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-700/60 pb-3">
+        <h3 class="font-bold text-lg text-white">Konfiguracja GitHub API</h3>
+        <button onclick="toggleSettingsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Dane zapisują się bezpośrednio w pliku <code class="bg-slate-800 text-blue-300 px-1 py-0.5 rounded">paragony.json</code> w Waszym repozytorium.
+      </p>
+
+      <form id="settingsForm" onsubmit="saveSettings(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">GitHub Personal Access Token</label>
+          <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" required class="w-full input-field rounded-xl px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Repozytorium (użytkownik/nazwa-repo)</label>
+          <input type="text" id="ghRepo" placeholder="login/paragony" required class="w-full input-field rounded-xl px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Ścieżka do pliku w repozytorium</label>
+          <input type="text" id="ghPath" value="paragony.json" required class="w-full input-field rounded-xl px-3 py-2 text-sm">
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="toggleSettingsModal()" class="w-1/2 bg-slate-800 text-slate-300 py-2.5 rounded-xl text-sm font-medium">Anuluj</button>
+          <button type="submit" class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl text-sm font-semibold">Zapisz</button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <!-- Lista wpisów -->
-    <div class="card">
-        <h2>Historia paragonów</h2>
-        <table id="receipts-table">
-            <thead>
-                <tr>
-                    <th>Data / Czas</th>
-                    <th>Klient</th>
-                    <th>Kwota</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Tutaj wpadają wpisy -->
-            </tbody>
-        </table>
-    </div>
+  <script>
+    let receipts = [];
+    let currentSha = null;
 
-    <script>
-        let receipts = [];
+    document.addEventListener("DOMContentLoaded", () => {
+      const today = new Date().toISOString().substring(0, 7);
+      document.getElementById('monthFilter').value = today;
+      loadSettings();
+      if (getGHConfig().token) {
+        fetchFromGitHub();
+      } else {
+        toggleSettingsModal();
+      }
+    });
 
-        // Ładowanie konfiguracji z localStorage przy starcie
-        window.onload = function() {
-            if(localStorage.getItem('gh_token')) document.getElementById('gh-token').value = localStorage.getItem('gh_token');
-            if(localStorage.getItem('gh_repo')) document.getElementById('gh-repo').value = localStorage.getItem('gh_repo');
-            if(localStorage.getItem('gh_path')) document.getElementById('gh-path').value = localStorage.getItem('gh_path');
-            
-            if(localStorage.getItem('gh_token') && localStorage.getItem('gh_repo')) {
-                loadDataFromGitHub();
-            }
+    function getGHConfig() {
+      return {
+        token: localStorage.getItem("gh_token") || "",
+        repo: localStorage.getItem("gh_repo") || "",
+        path: localStorage.getItem("gh_path") || "paragony.json"
+      };
+    }
+
+    function loadSettings() {
+      const conf = getGHConfig();
+      document.getElementById("ghToken").value = conf.token;
+      document.getElementById("ghRepo").value = conf.repo;
+      document.getElementById("ghPath").value = conf.path;
+    }
+
+    function saveSettings(e) {
+      e.preventDefault();
+      localStorage.setItem("gh_token", document.getElementById("ghToken").value.trim());
+      localStorage.setItem("gh_repo", document.getElementById("ghRepo").value.trim());
+      localStorage.setItem("gh_path", document.getElementById("ghPath").value.trim());
+      toggleSettingsModal();
+      fetchFromGitHub();
+    }
+
+    function toggleSettingsModal() {
+      document.getElementById("settingsModal").classList.toggle("hidden");
+    }
+
+    function updateStatus(connected, msg) {
+      const el = document.getElementById("syncStatus");
+      if (connected) {
+        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> ${msg || 'Połączono z GitHub'}`;
+      } else {
+        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span> ${msg || 'Błąd połączenia'}`;
+      }
+    }
+
+    async function fetchFromGitHub() {
+      const conf = getGHConfig();
+      if (!conf.token || !conf.repo) {
+        updateStatus(false, "Brak tokenu GitHub");
+        return;
+      }
+
+      updateStatus(true, "Pobieranie...");
+
+      try {
+        const res = await fetch(`https://api.github.com/repos/${conf.repo}/contents/${conf.path}`, {
+          headers: {
+            "Authorization": `Bearer ${conf.token}`,
+            "Accept": "application/vnd.github.v3+json"
+          }
+        });
+
+        if (res.status === 404) {
+          receipts = [];
+          currentSha = null;
+          updateStatus(true, "Plik stworzy się przy 1. wpisie");
+          renderReceipts();
+          return;
+        }
+
+        if (!res.ok) throw new Error("Błąd autoryzacji lub repozytorium");
+
+        const data = await res.json();
+        currentSha = data.sha;
+        
+        // Dekodowanie z UTF-8 Base64
+        const jsonText = new TextDecoder().decode(Uint8Array.from(atob(data.content), c => c.charCodeAt(0)));
+        receipts = JSON.parse(jsonText);
+
+        updateStatus(true, "Zaktualizowano");
+        renderReceipts();
+      } catch (err) {
+        console.error(err);
+        updateStatus(false, err.message);
+      }
+    }
+
+    async function saveToGitHub(newReceipts) {
+      const conf = getGHConfig();
+      if (!conf.token || !conf.repo) {
+        alert("Skonfiguruj połączenie z GitHubem w zębatce!");
+        return false;
+      }
+
+      updateStatus(true, "Zapisywanie...");
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Zapisywanie...`;
+
+      try {
+        const jsonString = JSON.stringify(newReceipts, null, 2);
+        
+        // Kodowanie UTF-8 do Base64
+        const bytes = new TextEncoder().encode(jsonString);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64Content = btoa(binary);
+
+        const bodyData = {
+          message: `Aktualizacja paragonów [${new Date().toLocaleString('pl-PL')}]`,
+          content: base64Content
         };
+        if (currentSha) bodyData.sha = currentSha;
 
-        function saveConfig() {
-            localStorage.setItem('gh_token', document.getElementById('gh-token').value.trim());
-            localStorage.setItem('gh_repo', document.getElementById('gh-repo').value.trim());
-            localStorage.setItem('gh_path', document.getElementById('gh-path').value.trim());
-            alert('Konfiguracja zapisana!');
-            loadDataFromGitHub();
+        const res = await fetch(`https://api.github.com/repos/${conf.repo}/contents/${conf.path}`, {
+          method: "PUT",
+          headers: {
+            "Authorization": `Bearer ${conf.token}`,
+            "Content-Type": "application/json",
+            "Accept": "application/vnd.github.v3+json"
+          },
+          body: JSON.stringify(bodyData)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.message || "Błąd zapisu na GitHub");
         }
 
-        async function loadDataFromGitHub() {
-            const token = localStorage.getItem('gh_token');
-            const repo = localStorage.getItem('gh_repo');
-            const path = localStorage.getItem('gh_path');
+        const resData = await res.json();
+        currentSha = resData.content.sha;
+        receipts = newReceipts;
+        
+        updateStatus(true, "Zapisano pomyślnie");
+        renderReceipts();
+        return true;
+      } catch (err) {
+        console.error(err);
+        alert("Błąd zapisu: " + err.message);
+        updateStatus(false, "Błąd zapisu");
+        return false;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-check"></i> Dodaj paragon`;
+      }
+    }
 
-            if (!token || !repo || !path) return;
+    async function handleAddReceipt(e) {
+      e.preventDefault();
+      
+      const clientName = document.getElementById("clientName").value.trim();
+      const amount = parseFloat(document.getElementById("amount").value);
 
-            const url = https://api.github.com/repos/${repo}/contents/${path};
+      if (!clientName || isNaN(amount)) return;
 
-            try {
-                const response = await fetch(url, {
-                    headers: { 'Authorization': token ${token} }
-                });
+      const now = new Date();
+      const newEntry = {
+        id: Date.now().toString(),
+        clientName,
+        amount,
+        date: now.toISOString().substring(0, 10),
+        time: now.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
+      };
 
-                if (response.status === 404) {
-                    receipts = [];
-                    renderTable();
-                    return;
-                }
+      const updated = [newEntry, ...receipts];
+      const success = await saveToGitHub(updated);
 
-                if (!response.ok) throw new Error('Błąd pobierania danych z GitHub');
+      if (success) {
+        document.getElementById("receiptForm").reset();
+      }
+    }
 
-                const data = await response.json();
-                const decodedContent = decodeURIComponent(escape(atob(data.content)));
-                receipts = JSON.parse(decodedContent);
-                renderTable();
-            } catch (error) {
-                console.error(error);
-                alert('Błąd pobierania danych: ' + error.message);
-            }
-        }
+    async function deleteReceipt(id) {
+      if (!confirm("Czy na pewno chcesz usunąć ten paragon z rejestru?")) return;
+      const updated = receipts.filter(r => r.id !== id);
+      await saveToGitHub(updated);
+    }
 
-        async function addReceipt() {
-            const client = document.getElementById('client-name').value.trim();
-            const amount = document.getElementById('amount').value.trim();
+    function renderReceipts() {
+      const selectedMonth = document.getElementById("monthFilter").value;
+      const container = document.getElementById("receiptList");
+      container.innerHTML = "";
 
-            if (!client || !amount) {
-                alert('Wypełnij imię i nazwisko oraz kwotę!');
-                return;
-            }
+      const filtered = receipts.filter(r => r.date.startsWith(selectedMonth));
 
-            const newEntry = {
-                date: new Date().toLocaleString('pl-PL'),
-                client: client,
-                amount: parseFloat(amount).toFixed(2)
-            };
+      // Statystyki
+      const total = filtered.reduce((sum, r) => sum + r.amount, 0);
+      document.getElementById("statTotal").innerText = `${total.toFixed(2)} PLN`;
 
-            receipts.unshift(newEntry); // Dodaj na początek listy
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="glass-card rounded-2xl p-8 text-center text-slate-500">
+            <i class="fa-solid fa-inbox text-3xl mb-2 block opacity-50"></i>
+            <p class="text-sm">Brak paragonów w wybranym miesiącu.</p>
+          </div>
+        `;
+        return;
+      }
 
-            await saveDataToGitHub();
-            
-            // Wyczyść pola formularza
-            document.getElementById('client-name').value = '';
-            document.getElementById('amount').value = '';
-        }
+      filtered.forEach(r => {
+        const card = document.createElement("div");
+        card.className = "glass-card rounded-xl p-3.5 flex justify-between items-center hover:border-slate-600 transition";
 
-        async function saveDataToGitHub() {
-            const token = localStorage.getItem('gh_token');
-            const repo = localStorage.getItem('gh_repo');
-            const path = localStorage.getItem('gh_path');
+        card.innerHTML = `
+          <div class="space-y-1">
+            <div class="font-semibold text-white text-base leading-snug">${r.clientName}</div>
+            <div class="text-xs text-slate-400 flex items-center gap-2">
+              <span><i class="fa-regular fa-calendar text-slate-500 mr-1"></i>${r.date}</span>
+              <span><i class="fa-regular fa-clock text-slate-500 mr-1"></i>${r.time}</span>
+            </div>
+          </div>
 
-            if (!token || !repo || !path) {
-                alert('Brak konfiguracji GitHub!');
-                return;
-            }
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-emerald-400 text-base">${r.amount.toFixed(2)} zł</span>
+            <button onclick="deleteReceipt('${r.id}')" title="Usuń wpis" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition">
+              <i class="fa-regular fa-trash-can"></i>
+            </button>
+          </div>
+        `;
 
-            const url = https://api.github.com/repos/${repo}/contents/${path};
-
-            try {
-                // Najpierw pobierz sha istniejącego pliku (jeśli jest)
-                let sha = '';
-                const getResp = await fetch(url, {
-                    headers: { 'Authorization': token ${token} }
-                });
-                if (getResp.ok) {
-                    const fileData = await getResp.json();
-                    sha = fileData.sha;
-                }
-
-                const contentEncoded = btoa(unescape(encodeURIComponent(JSON.stringify(receipts, null, 2))));
-
-                const bodyData = {
-                    message: "Aktualizacja listy paragonów",
-                    content: contentEncoded
-                };
-                if (sha) bodyData.sha = sha;
-
-                const putResp = await fetch(url, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': token ${token},
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(bodyData)
-                });
-
-                if (!putResp.ok) {
-                    const errJson = await putResp.json();
-                    throw new Error(errJson.message || 'Błąd zapisu');
-                }
-
-                alert('Zapisano pomyślnie!');
-                renderTable();
-            } catch (error) {
-                console.error(error);
-                alert('Błąd zapisu w GitHub: ' + error.message);
-            }
-        }
-
-        function renderTable() {
-            const tbody = document.querySelector('#receipts-table tbody');
-            tbody.innerHTML = '';
-
-            receipts.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${item.date}</td>
-                    <td>${item.client}</td>
-                    <td>${item.amount} zł</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-    </script>
+        container.appendChild(card);
+      });
+    }
+  </script>
 </body>
 </html>
