@@ -21,7 +21,7 @@
     <div class="max-w-md mx-auto flex justify-between items-center">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xl border border-blue-500/30">
-          <i class="fa-solid font-bold fa-receipt"></i>
+          <i class="fa-solid fa-receipt"></i>
         </div>
         <div>
           <h1 class="font-bold text-lg leading-tight">Rejestr Paragonów</h1>
@@ -78,11 +78,16 @@
       </div>
     </section>
 
-    <!-- Lista paragonów -->
+    <!-- Lista paragonów + Eksport CSV -->
     <section class="space-y-3">
       <div class="flex justify-between items-center px-1">
         <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Lista wpisów</h2>
-        <input type="month" id="monthFilter" onchange="renderReceipts()" class="input-field rounded-lg px-2.5 py-1 text-xs text-slate-300">
+        <div class="flex items-center gap-2">
+          <input type="month" id="monthFilter" onchange="renderReceipts()" class="input-field rounded-lg px-2.5 py-1 text-xs text-slate-300">
+          <button onclick="exportToCSV()" title="Pobierz plik CSV z tego miesiąca" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-medium transition">
+            <i class="fa-solid fa-file-csv text-sm"></i> CSV
+          </button>
+        </div>
       </div>
 
       <div id="receiptList" class="space-y-2.5">
@@ -357,6 +362,35 @@
 
         container.appendChild(card);
       });
+    }
+
+    // Funkcja eksportu do CSV z nagłówkiem UTF-8 BOM dla Excela
+    function exportToCSV() {
+      const selectedMonth = document.getElementById("monthFilter").value;
+      const filtered = receipts.filter(r => r.date.startsWith(selectedMonth));
+
+      if (filtered.length === 0) {
+        alert("Brak wpisów w wybranym miesiącu do wyeksportowania.");
+        return;
+      }
+
+      // Nagłówki CSV
+      let csvContent = "\uFEFFData;Godzina;Klient;Kwota (PLN)\n";
+
+      filtered.forEach(r => {
+        const nameEscaped = `"${r.clientName.replace(/"/g, '""')}"`;
+        const amountFormatted = r.amount.toFixed(2).replace('.', ',');
+        csvContent += `${r.date};${r.time};${nameEscaped};${amountFormatted}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `paragony_${selectedMonth}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   </script>
 </body>
